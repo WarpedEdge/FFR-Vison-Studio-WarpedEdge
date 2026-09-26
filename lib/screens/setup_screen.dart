@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
@@ -82,7 +84,7 @@ class _SetupScreenState extends State<SetupScreen> {
                 Row(children: [
                   GoButton(preparing ? 'Preparing' : 'Prepare and continue', busy: preparing, onPressed: booted && gameOk && !preparing ? () => app.runSetup(_game.text) : null),
                   const SizedBox(width: 14),
-                  Expanded(child: Text(booted && !gameOk ? 'Point at the folder that contains FFRS.exe.' : 'Takes about two minutes. The game can stay closed.', style: Guide.small())),
+                  Expanded(child: Text(booted && !gameOk ? 'Point at the folder that contains FFRS.exe.' : (Platform.isLinux ? 'Uses UMU/Proton for the engine. The first start can take several minutes.' : 'Takes about two minutes. The game can stay closed.'), style: Guide.small())),
                   GuideButton('Logs folder', small: true, icon: Icons.folder_open, onPressed: app.openLogs),
                 ]),
               ]),
@@ -108,7 +110,7 @@ class _SetupScreenState extends State<SetupScreen> {
           child: TextField(
             controller: _game,
             style: Guide.small(Guide.ink),
-            decoration: InputDecoration(hintText: r'…\steamapps\common\FINAL FANTASY RESONANCE DEMO', suffixIcon: Icon(ok ? Icons.check : Icons.search, size: 16, color: ok ? Guide.green : Guide.inkFaint)),
+            decoration: InputDecoration(hintText: Platform.isLinux ? '…/steamapps/common/FINAL FANTASY RESONANCE DEMO' : r'…\steamapps\common\FINAL FANTASY RESONANCE DEMO', suffixIcon: Icon(ok ? Icons.check : Icons.search, size: 16, color: ok ? Guide.green : Guide.inkFaint)),
             onChanged: (_) => setState(() {}),
           ),
         ),

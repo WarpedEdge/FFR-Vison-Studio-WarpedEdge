@@ -3,18 +3,21 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:win32_registry/win32_registry.dart';
 
+import 'platform_support.dart';
+
 /// Finds FINAL FANTASY RESONANCE DEMO on this machine.
 ///
 /// Order: Steam's registry entry and every library folder it lists, then a scan of every drive's
 /// `steamapps\common` and a few common install roots, then nothing (the UI asks for a folder).
 class GameLocator {
   static const dirName = 'FINAL FANTASY RESONANCE DEMO';
-  static const marker = r'FFRS\Content\Paks\FFRS-Windows.utoc';
+  static const markerParts = ['FFRS', 'Content', 'Paks', 'FFRS-Windows.utoc'];
 
   static bool isGameRoot(String? dir) =>
-      dir != null && dir.isNotEmpty && File(p.join(dir, marker)).existsSync();
+      dir != null && dir.isNotEmpty && File(p.joinAll([dir, ...markerParts])).existsSync();
 
   static List<String> steamLibraries() {
+    if (Platform.isLinux) return PlatformSupport.linuxSteamLibraries();
     final libs = <String>[];
     for (final (hive, key, value) in [
       (RegistryHive.currentUser, r'Software\Valve\Steam', 'SteamPath'),
@@ -49,6 +52,7 @@ class GameLocator {
       final c = p.join(lib, 'steamapps', 'common', dirName);
       if (isGameRoot(c)) return c;
     }
+    if (Platform.isLinux) return null;
     // Every drive: X:\SteamLibrary, X:\Steam, X:\Games\Steam, X:\Program Files (x86)\Steam ...
     for (final letter in 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('')) {
       final drive = '$letter:\\';
@@ -65,6 +69,7 @@ class GameLocator {
 
   static bool isRunning() {
     try {
+      if (Platform.isLinux) return Process.runSync('pgrep', ['-fi', r'FFRS-Win64-Shipping\.exe']).exitCode == 0;
       final r = Process.runSync('tasklist', ['/FI', 'IMAGENAME eq FFRS-Win64-Shipping.exe']);
       return (r.stdout as String).toLowerCase().contains('ffrs-win64-shipping.exe');
     } catch (_) {
