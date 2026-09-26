@@ -2,18 +2,16 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-/// Where the app keeps the engine and its data: %LOCALAPPDATA%\FFR Vision Studio.
+import 'platform_support.dart';
+
+/// Where the app keeps the engine and its data.
 /// The engine writes extracted/, build/ and mods/ next to itself, like the repository does.
 class AppPaths {
   AppPaths._(this.root);
   final String root;
 
   static AppPaths resolve() {
-    final base = Platform.environment['LOCALAPPDATA'] ??
-        Platform.environment['APPDATA'] ??
-        Platform.environment['USERPROFILE'] ??
-        Directory.current.path;
-    final root = p.join(base, 'FFR Vision Studio');
+    final root = PlatformSupport.appDataRoot();
     Directory(root).createSync(recursive: true);
     return AppPaths._(root);
   }

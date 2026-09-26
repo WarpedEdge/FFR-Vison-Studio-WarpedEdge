@@ -10,6 +10,7 @@ import '../services/downloader.dart';
 import '../services/engine.dart';
 import '../services/game_locator.dart';
 import '../services/paths.dart';
+import '../services/platform_support.dart';
 import '../version.dart';
 import 'catalog_helpers.dart';
 
@@ -96,15 +97,21 @@ class AppState extends ChangeNotifier {
         manifest = man;
         final tag = man['version'].toString();
         final minApp = (man['minApp'] ?? '').toString();
-        if (compareTags(tag, appTag) > 0 && (man['packs'] as JsonMap?)?['app'] != null) {
+        if (Platform.isWindows && compareTags(tag, appTag) > 0 && (man['packs'] as JsonMap?)?['app'] != null) {
           updateAvailable = man['displayVersion'] != null ? '${man['displayVersion']} build ${man['build']}' : tag;
         }
         final tooNew = minApp.isNotEmpty && compareTags(minApp, appTag) > 0;
         if (tooNew) {
           // The host's engine needs a newer app than this one. Keep what is installed rather than mixing versions.
-          if (!haveEngine) throw StateError('This copy of the app ($appLabel) is older than the packs on the host. Download the new app from $downloadPage.');
+          if (!haveEngine) {
+            throw StateError(Platform.isWindows
+                ? 'This copy of the app ($appLabel) is older than the packs on the host. Download the new app from $downloadPage.'
+                : 'This Linux app ($appLabel) is older than the packs on the host. Rebuild it with the current host build number.');
+          }
           _markInstalled(installed);
-          banner = 'A newer version is on the host and needs the new app. Press Update now, or download it from the page; this copy keeps working as it is.';
+          banner = Platform.isWindows
+              ? 'A newer version is on the host and needs the new app. Press Update now, or download it from the page; this copy keeps working as it is.'
+              : 'A newer version is on the host. Rebuild the Linux app with its build number; this copy keeps working as it is.';
         } else {
           final packs = man['packs'] as JsonMap;
           // A pack carries its own version when its content is older than the manifest (it did not change in this build):
@@ -218,7 +225,8 @@ class AppState extends ChangeNotifier {
       modInstalled = st['modInstalled'] == true;
       backups = (st['backups'] as num?)?.toInt() ?? 0;
       placed = (st['placed'] as num?)?.toInt() ?? 0;
-      gameRoot = (st['gameRoot'] as String?) ?? gameRoot;
+      final reportedGameRoot = st['gameRoot'] as String?;
+      gameRoot = reportedGameRoot == null ? gameRoot : PlatformSupport.fromEnginePath(reportedGameRoot);
       engineVersion = st['engineVersion']?.toString();
       // a preparation that lost a table (interrupted, or a dump that failed) shows up here: go back to the setup page
       if (st['setupNeeded'] == true && phase == Phase.ready && setupProgress?.state != 'working') { phase = Phase.setup; setupProgress = null; }
@@ -228,10 +236,10 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Opens the folder with the engine logs in Explorer.
+  /// Opens the folder with the platform's file manager.
   Future<void> openLogs() async {
     Directory(logsDir).createSync(recursive: true);
-    try { await Process.start('explorer.exe', [logsDir]); } catch (_) {}
+    try { await Process.start(Platform.isLinux ? 'xdg-open' : 'explorer.exe', [logsDir]); } catch (_) {}
   }
 
   // ---------------------------------------------------------------- first-run setup
@@ -240,7 +248,7 @@ class AppState extends ChangeNotifier {
     setupLog.clear();
     notifyListeners();
     try {
-      await api!.setup(game);
+      await api!.setup(PlatformSupport.toEnginePath(game));
       while (true) {
         await Future<void>.delayed(const Duration(seconds: 1));
         final l = await api!.setupLog();
@@ -364,6 +372,10 @@ class AppState extends ChangeNotifier {
   /// A running exe cannot replace itself, so: stage the new app next to the app data, write a small script that waits for
   /// this process to end, copies the staged folder over the one the exe lives in and starts the new exe, then leave.
   Future<void> updateApp() async {
+    if (!Platform.isWindows) {
+      showNotice('Automatic updates are available only in the Windows build. Open the download page for a Linux release.');
+      return;
+    }
     final info = (manifest?['packs'] as JsonMap?)?['app'] as JsonMap?;
     if (info == null || updating) return;
     final exePath = Platform.resolvedExecutable;

@@ -1,8 +1,15 @@
 # Changelog
 
-FFR Vision Studio, the Windows app. The product is 1.0.0 while the first release is being finished; every packaging run is a
+FFR Vision Studio, the Windows and Linux app. The product is 1.0.0 while the first release is being finished; every packaging run is a
 build (`1.0.0.<build>` in file names, the manifest and the app's own version check). Engine changes are listed when the app
 needs them.
+
+## Unreleased
+
+- Added a native Linux app, an immutable-system Podman build, Linux CI, Steam library detection, XDG data paths, and
+  UMU/Proton support for the currently Windows-only packaged engine.
+- The add-unit picker now previews newly downloaded animations immediately instead of waiting until that unit has been
+  added once.
 
 ## 1.0.0 build 7 — 2026-09-06
 

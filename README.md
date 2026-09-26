@@ -1,6 +1,6 @@
-# FFR Vision Studio (Windows app)
+# FFR Vision Studio
 
-The native front of the studio: a Flutter desktop app that downloads and supervises the Python/.NET engine
+The native Windows and Linux front of the studio: a Flutter desktop app that downloads and supervises the Python/.NET engine
 (`FFR Vision Studio Engine.exe`, fetched from the project's host on first start) and drives its Easy mode natively.
 This repository is the app on its own: it needs nothing else on disk to build, and at runtime it talks only to the
 engine over localhost and to the host over HTTPS. Design: `DESIGN.md` and `lib/design/DIRECTION.md`. The engine's
@@ -14,6 +14,35 @@ flutter analyze
 flutter test
 flutter build windows --release            # a developer build (version 1.0.0, build 0)
 ```
+
+### Linux on Bazzite and other immutable systems
+
+Flutter is required to compile the app, but not to run the compiled bundle. `uv` cannot replace it because Flutter ships
+the Dart compiler, desktop engine, and build tooling together. The repository includes a Podman build so Flutter, Clang,
+CMake, Ninja, and GTK development files do not need to be installed on the host:
+
+```sh
+./tool/build_linux.sh
+./build/linux/x64/release/bundle/ffr_vision_studio
+```
+
+For a build that can use the current hosted engine, stamp it with the release build number just like the Windows build:
+
+```sh
+./tool/build_linux.sh --build-name 1.0.0 --build-number <n> \
+  --dart-define=APP_VERSION=1.0.0 --dart-define=APP_BUILD=<n>
+```
+
+The current number is the `build` value in `https://ffbe.luminest.io/manifest.json`. An unstamped build still compiles and
+opens, but it refuses a hosted engine whose `minApp` is newer than build 0.
+
+The build command creates a reusable container image, so its first run downloads the Flutter SDK and takes longer. The
+output is the normal relocatable Flutter bundle; keep its executable, `lib/`, and `data/` together.
+
+The engine is still published only as a Windows executable. On Linux the app runs it through `umu-run` in a private Proton
+prefix under `$XDG_DATA_HOME/ffr-vision-studio` (normally `~/.local/share/ffr-vision-studio`). Bazzite includes UMU. On
+another distribution, install `umu-run` before starting the app. Steam game folders are detected from native and Flatpak
+Steam libraries and translated to Proton paths only when the app calls the engine.
 
 A developer build is enough to work on the app: it talks to the live host exactly like a release does. A numbered
 build stamps the version into the exe and into the app's own version check:
@@ -39,11 +68,11 @@ exe next to the engine and the data packs.
 
 ## Developing without touching your real install
 
-Start the built exe with `LOCALAPPDATA` pointed at a scratch folder: the app keeps everything (engine, packs, units, logs)
-under `<LOCALAPPDATA>\FFR Vision Studio`. `FFR_STUDIO_HOST` points it at another host tree (a local copy served on
+Start the Windows exe with `LOCALAPPDATA` pointed at a scratch folder, or the Linux bundle with `XDG_DATA_HOME` pointed at
+a scratch folder. The app keeps everything below that location. `FFR_STUDIO_HOST` points it at another host tree (a local copy served on
 127.0.0.1, for instance); it defaults to the live host, which is all a developer build needs.
 
 ## Files
 
 `CHANGELOG.md` (by build), `LICENSE` (MIT for the code; the game's art and data are Square Enix's and excluded),
-`CONTRIBUTING.md`, `.github/workflows/windows.yml` (analyze, test, build, artifact on every push).
+`CONTRIBUTING.md`, `.github/workflows/windows.yml`, and `.github/workflows/linux.yml` (analyze, test, build, artifact).
